@@ -1,68 +1,105 @@
 package ru.leymooo.antirelog.manager;
 
-import org.bukkit.Bukkit;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import ru.leymooo.antirelog.config.Settings;
-import ru.leymooo.antirelog.util.Utils;
-import ru.leymooo.antirelog.util.VersionUtils;
+import ru.leymooo.antirelog.data.PlayerData;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class BossbarManager {
 
-    private final Map<Integer, BossBar> bossBars = new HashMap<>();
     private final Settings settings;
+    private final Map<Player, PlayerData> playerDataMap = new HashMap<>();
+    private boolean enabled = true;
 
     public BossbarManager(Settings settings) {
         this.settings = settings;
     }
 
     public void createBossBars() {
-        bossBars.clear();
-        if (VersionUtils.isVersion(9) && settings.getPvpTime() > 0) {
-            String title = Utils.color(settings.getMessages().getInPvpBossbar());
-            if (!title.isEmpty()) {
-                double add = 1d / (double) settings.getPvpTime();
-                double progress = add;
-                for (int i = 1; i <= settings.getPvpTime(); i++) {
-                    String actualTitle = Utils.replaceTime(title, i);
-                    BossBar bar = Bukkit.createBossBar(actualTitle, BarColor.RED, BarStyle.SOLID);
-                    bar.setProgress(progress);
-                    progress += add;
-                    bossBars.put(i, bar);
-                    if (progress > 1.000d) {
-                        progress = 1.000d;
-                    }
-                }
-            }
+    }
+
+    public PlayerData createPlayerData(Player player, int time, boolean silent) {
+        removePlayerData(player);
+        PlayerData data = new PlayerData(settings, time, player, silent);
+        if (!enabled) {
+            data.setBossBarVisible(false);
+        }
+        playerDataMap.put(player, data);
+        return data;
+    }
+
+    public PlayerData getPlayerData(Player player) {
+        return playerDataMap.get(player);
+    }
+
+    public void updateBossBar(Player player) {
+        PlayerData data = playerDataMap.get(player);
+        if (data != null) {
+            data.updateBossBar(settings);
         }
     }
 
     public void setBossBar(Player player, int time) {
-        if (!bossBars.isEmpty()) {
-            for (BossBar bar : bossBars.values()) {
-                bar.removePlayer(player);
-            }
-            bossBars.get(time).addPlayer(player);
+        PlayerData data = playerDataMap.get(player);
+        if (data != null && !data.isSilent() && enabled) {
+            data.setDelay(time);
+            data.updateBossBar(settings);
         }
     }
 
     public void clearBossbar(Player player) {
-        for (BossBar bar : bossBars.values()) {
-            bar.removePlayer(player);
-        }
+        removePlayerData(player);
     }
 
     public void clearBossbars() {
-        if (!bossBars.isEmpty()) {
-            for (BossBar bar : bossBars.values()) {
-                bar.removeAll();
+        for (PlayerData data : playerDataMap.values()) {
+            data.removeBossBar();
+        }
+        playerDataMap.clear();
+    }
+
+    public void removePlayerData(Player player) {
+        PlayerData data = playerDataMap.remove(player);
+        if (data != null) {
+            data.removeBossBar();
+        }
+    }
+
+    public void setVisible(Player player, boolean visible) {
+        PlayerData data = playerDataMap.get(player);
+        if (data != null) {
+            data.setBossBarVisible(visible);
+        }
+    }
+
+    public boolean isVisible(Player player) {
+        PlayerData data = playerDataMap.get(player);
+        if (data == null) {
+            return true;
+        }
+        return data.isBossBarVisible();
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+        if (!enabled) {
+            for (PlayerData data : playerDataMap.values()) {
+                data.setBossBarVisible(false);
+            }
+        } else {
+            for (PlayerData data : playerDataMap.values()) {
+                data.setBossBarVisible(true);
             }
         }
-        bossBars.clear();
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public boolean hasPlayerData(Player player) {
+        return playerDataMap.containsKey(player);
     }
 }

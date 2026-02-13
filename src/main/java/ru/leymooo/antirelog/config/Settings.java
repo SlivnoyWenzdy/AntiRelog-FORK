@@ -1,10 +1,7 @@
 package ru.leymooo.antirelog.config;
 
-
 import ru.leymooo.annotatedyaml.Annotations.*;
-
 import ru.leymooo.annotatedyaml.Configuration;
-import ru.leymooo.annotatedyaml.ConfigurationProvider;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -13,34 +10,30 @@ public class Settings extends Configuration {
 
     @Final
     @Key("config-version")
-    private String configVersion = "1.7";
+    private String configVersion = "1.8";
     private Messages messages = new Messages();
 
     @Comment("Кулдавн для обычных золотых яблок во время пвп.")
     @Key("golden-apple-cooldown")
     private int goldenAppleCooldown = 30;
 
-    @Comment({"Кулдавн для зачарованых золотых яблок во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время " +
-            "пвп"})
+    @Comment({"Кулдавн для зачарованых золотых яблок во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
     @Key("enchanted-golden-apple-cooldown")
     private int enchantedGoldenAppleCooldown = 60;
 
-    @Comment({"Кулдавн для жемчугов края во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время " +
-            "пвп"})
+    @Comment({"Кулдавн для жемчугов края во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
     @Key("ender-pearl-cooldown")
     private int enderPearlCooldown = 15;
 
-    @Comment({"Кулдавн для корусов во время пвп.", "https://minecraft-ru.gamepedia.com/Плод_коруса", "Значение 0 отключает кулдаун; -1 " +
-            "отключает использование во время пвп"})
+    @Comment({"Кулдавн для корусов во время пвп.", "https://minecraft-ru.gamepedia.com/Плод_коруса", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
     @Key("chorus-cooldown")
-    private int сhorusCooldown = 7;
+    private int chorusCooldown = 7;
 
     @Comment({"Кулдавн для фейверков во время пвп. (чтобы не убегали на элитрах)", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
     @Key("firework-cooldown")
     private int fireworkCooldown = 60;
 
-    @Comment({"Кулдавн для тотемов бесмертия во время пвп.", "Значение 0 отключает кулдаун; -1 " +
-            "отключает использование во время пвп"})
+    @Comment({"Кулдавн для тотемов бесмертия во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
     @Key("totem-cooldown")
     private int totemCooldown = 60;
 
@@ -52,8 +45,8 @@ public class Settings extends Configuration {
     @Key("disable-commands-in-pvp")
     private boolean disableCommandsInPvp = true;
 
-    @Comment({"Команды которые можно писать во время пвп", "Команды писать без '/' (кол-во '/' - 1)", "Плагин будет пытаться сам " +
-            "определить алисы для команд (msg,tell,m), но для некоторых команд возможно придется самому прописать алиасы",
+    @Comment({"Команды которые можно писать во время пвп", "Команды писать без '/' (кол-во '/' - 1)",
+            "Плагин будет пытаться сам определить алисы для команд (msg,tell,m), но для некоторых команд возможно придется самому прописать алиасы",
             "commands-whitelist:", "- command", "- command2", "- /expand"})
     @Key("commands-whitelist")
     private List<String> whiteListedCommands = new ArrayList<>(0);
@@ -74,13 +67,11 @@ public class Settings extends Configuration {
     @Key("run-commands-on-kick")
     private boolean runCommandsOnKick = true;
 
-    @Comment("Какой текст должен быть впричине кика, чтобы его убило/выполнились команды. Если пусто, то будет убивать/выполняться " +
-            "команды всегда")
+    @Comment("Какой текст должен быть впричине кика, чтобы его убило/выполнились команды. Если пусто, то будет убивать/выполняться команды всегда")
     @Key("kick-messages")
     private List<String> kickMessages = Arrays.asList("спам", "реклама", "анти-чит");
 
-    @Comment({"Какие команды запускать от консоли при выходе игрока во время пвп?", "commands-on-leave:", "- command1", "- command2 " +
-            "%player%"})
+    @Comment({"Какие команды запускать от консоли при выходе игрока во время пвп?", "commands-on-leave:", "- command1", "- command2 %player%"})
     @Key("commands-on-leave")
     private List<String> commandsOnLeave = new ArrayList<>(0);
 
@@ -88,14 +79,13 @@ public class Settings extends Configuration {
     @Key("disable-powerups")
     private boolean disablePowerups = true;
 
-    @Comment({"Какие команды выполнять, если были отключены усиления у игрока", "Данную настройку можно использовать например для того, " +
-            "чтобы наложить на игрока отрицательный эффект, если он начал пвп в ГМ/ФЛАЕ/и тд",
-            "commands-on-powerups-disable: ", "- command1 %player%", "- effect give %player% weakness 10"
-    })
+    @Comment({"Какие команды выполнять, если были отключены усиления у игрока",
+            "Данную настройку можно использовать например для того, чтобы наложить на игрока отрицательный эффект, если он начал пвп в ГМ/ФЛАЕ/и тд",
+            "commands-on-powerups-disable: ", "- command1 %player%", "- effect give %player% weakness 10"})
     @Key("commands-on-powerups-disable")
     private List<String> commandsOnPowerupsDisable = new ArrayList<>(0);
 
-    @Comment({"Отключать ли возможность телепортироваться во время пвп?"})
+    @Comment("Отключать ли возможность телепортироваться во время пвп?")
     @Key("disable-teleports-in-pvp")
     private boolean disableTeleportsInPvp = true;
 
@@ -161,8 +151,8 @@ public class Settings extends Configuration {
         return enderPearlCooldown;
     }
 
-    public int getСhorusCooldown() {
-        return сhorusCooldown;
+    public int getChorusCooldown() {
+        return chorusCooldown;
     }
 
     public int getFireworkCooldown() {
@@ -261,7 +251,7 @@ public class Settings extends Configuration {
                 ", goldenAppleCooldown=" + goldenAppleCooldown +
                 ", enchantedGoldenAppleCooldown=" + enchantedGoldenAppleCooldown +
                 ", enderPearlCooldown=" + enderPearlCooldown +
-                ", сhorusCooldown=" + сhorusCooldown +
+                ", chorusCooldown=" + chorusCooldown +
                 ", fireworkCooldown=" + fireworkCooldown +
                 ", totemCooldown=" + totemCooldown +
                 ", pvpTime=" + pvpTime +

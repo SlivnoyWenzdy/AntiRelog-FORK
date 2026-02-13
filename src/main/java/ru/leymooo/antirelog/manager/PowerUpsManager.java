@@ -12,7 +12,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.PluginManager;
 import org.kitteh.vanish.VanishPlugin;
 import ru.leymooo.antirelog.config.Settings;
+import ru.leymooo.antirelog.event.PowerUpsDisabledEvent;
+import ru.leymooo.antirelog.event.PowerUpsDisabledEvent.PowerUpType;
 import ru.leymooo.antirelog.util.Utils;
+
+import java.util.EnumSet;
+import java.util.Set;
 
 public class PowerUpsManager {
 
@@ -27,53 +32,54 @@ public class PowerUpsManager {
         detectPlugins();
     }
 
+    public Set<PowerUpType> disablePowerUps(Player player, Player triggeredBy) {
+        Set<PowerUpType> disabled = EnumSet.noneOf(PowerUpType.class);
 
-    public boolean disablePowerUps(Player player) {
         if (player.hasPermission("antirelog.bypass.checks")) {
-            return false;
+            return disabled;
         }
 
-        boolean disabled = false;
         if (player.getGameMode() == GameMode.CREATIVE) {
             if (Bukkit.getDefaultGameMode() == GameMode.ADVENTURE) {
                 player.setGameMode(GameMode.ADVENTURE);
             } else {
                 player.setGameMode(GameMode.SURVIVAL);
             }
-            disabled = true;
+            disabled.add(PowerUpType.CREATIVE);
         }
 
         if (player.isFlying() || player.getAllowFlight()) {
             player.setFlying(false);
             player.setAllowFlight(false);
-            disabled = true;
+            disabled.add(PowerUpType.FLY);
         }
 
-        if (checkEssentials(player)) {
-            disabled = true;
-        }
-
-        if (checkCMI(player)) {
-            disabled = true;
-        }
+        disabled.addAll(checkEssentials(player));
+        disabled.addAll(checkCMI(player));
 
         if (vanishAPI && VanishAPI.isInvisible(player)) {
             VanishAPI.showPlayer(player);
-            disabled = true;
+            disabled.add(PowerUpType.SUPERVANISH);
         }
         if (vanishNoPacket != null && vanishNoPacket.getManager().isVanished(player)) {
             vanishNoPacket.getManager().toggleVanishQuiet(player, false);
-            disabled = true;
+            disabled.add(PowerUpType.VANISH_NO_PACKET);
         }
         if (libsDisguises && DisguiseAPI.isSelfDisguised(player)) {
             DisguiseAPI.undisguiseToAll(player);
+            disabled.add(PowerUpType.LIBS_DISGUISES);
         }
+
+        if (!disabled.isEmpty()) {
+            Bukkit.getPluginManager().callEvent(new PowerUpsDisabledEvent(player, triggeredBy, disabled));
+        }
+
         return disabled;
     }
 
-
-    public void disablePowerUpsWithRunCommands(Player player) {
-        if (disablePowerUps(player) && !settings.getCommandsOnPowerupsDisable().isEmpty()) {
+    public void disablePowerUpsWithRunCommands(Player player, Player triggeredBy) {
+        Set<PowerUpType> disabled = disablePowerUps(player, triggeredBy);
+        if (!disabled.isEmpty() && !settings.getCommandsOnPowerupsDisable().isEmpty()) {
             settings.getCommandsOnPowerupsDisable().forEach(command -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
                     Utils.color(command.replace("%player%", player.getName()))));
             String message = settings.getMessages().getPvpStartedWithPowerups();
@@ -93,36 +99,35 @@ public class PowerUpsManager {
         this.cmi = pluginManager.isPluginEnabled("CMI");
     }
 
-
-    private boolean checkEssentials(Player player) {
-        boolean disabled = false;
+    private Set<PowerUpType> checkEssentials(Player player) {
+        Set<PowerUpType> disabled = EnumSet.noneOf(PowerUpType.class);
         if (essentials != null) {
             User user = essentials.getUser(player);
             if (user.isVanished()) {
                 user.setVanished(false);
-                disabled = true;
+                disabled.add(PowerUpType.ESSENTIALS_VANISH);
             }
             if (user.isGodModeEnabled()) {
                 user.setGodModeEnabled(false);
-                disabled = true;
+                disabled.add(PowerUpType.ESSENTIALS_GOD);
             }
         }
         return disabled;
     }
 
-    private boolean checkCMI(Player player) {
-        boolean disabled = false;
+    private Set<PowerUpType> checkCMI(Player player) {
+        Set<PowerUpType> disabled = EnumSet.noneOf(PowerUpType.class);
         if (cmi) {
             CMIUser user = CMI.getInstance().getPlayerManager().getUser(player);
             if (user != null) {
                 if (user.isGod()) {
                     CMI.getInstance().getNMS().changeGodMode(player, false);
                     user.setTgod(0);
-                    disabled = true;
+                    disabled.add(PowerUpType.CMI_GOD);
                 }
                 if (user.isVanished()) {
                     user.setVanished(false);
-                    disabled = true;
+                    disabled.add(PowerUpType.CMI_VANISH);
                 }
             }
         }

@@ -11,9 +11,10 @@ public class PvpPreStartEvent extends Event implements Cancellable {
 
     private final Player defender;
     private final Player attacker;
-    private final int pvpTime;
+    private int pvpTime;
     private final PvPStatus pvpStatus;
     private boolean cancelled;
+    private String cancelReason;
 
     public PvpPreStartEvent(Player defender, Player attacker, int pvpTime, PvPStatus pvpStatus) {
         this.defender = defender;
@@ -40,8 +41,24 @@ public class PvpPreStartEvent extends Event implements Cancellable {
         this.cancelled = cancel;
     }
 
+    public void setCancelled(boolean cancel, String reason) {
+        this.cancelled = cancel;
+        this.cancelReason = reason;
+    }
+
+    public String getCancelReason() {
+        return cancelReason;
+    }
+
     public int getPvpTime() {
         return pvpTime;
+    }
+
+    public void setPvpTime(int pvpTime) {
+        if (pvpTime <= 0) {
+            throw new IllegalArgumentException("PvP time must be positive");
+        }
+        this.pvpTime = pvpTime;
     }
 
     public PvPStatus getPvpStatus() {
@@ -60,6 +77,6 @@ public class PvpPreStartEvent extends Event implements Cancellable {
     public enum PvPStatus {
         ATTACKER_IN_PVP,
         DEFENDER_IN_PVP,
-        ALL_NOT_IN_PVP;
+        ALL_NOT_IN_PVP
     }
 }

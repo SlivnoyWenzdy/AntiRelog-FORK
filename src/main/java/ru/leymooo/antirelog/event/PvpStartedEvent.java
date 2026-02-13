@@ -13,12 +13,14 @@ public class PvpStartedEvent extends Event {
     private final Player attacker;
     private final int pvpTime;
     private final PvPStatus pvpStatus;
+    private final long startTimestamp;
 
     public PvpStartedEvent(Player defender, Player attacker, int pvpTime, PvPStatus pvpStatus) {
         this.defender = defender;
         this.attacker = attacker;
         this.pvpTime = pvpTime;
         this.pvpStatus = pvpStatus;
+        this.startTimestamp = System.currentTimeMillis();
     }
 
     public Player getDefender() {
@@ -35,6 +37,10 @@ public class PvpStartedEvent extends Event {
 
     public PvPStatus getPvpStatus() {
         return pvpStatus;
+    }
+
+    public long getStartTimestamp() {
+        return startTimestamp;
     }
 
     @Override

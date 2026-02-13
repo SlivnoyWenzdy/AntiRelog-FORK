@@ -14,8 +14,12 @@ import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import ru.leymooo.antirelog.Antirelog;
 import ru.leymooo.antirelog.config.Messages;
 import ru.leymooo.antirelog.config.Settings;
+import ru.leymooo.antirelog.event.PvpPlayerKilledEvent;
+import ru.leymooo.antirelog.event.PvpPlayerKilledEvent.KillReason;
+import ru.leymooo.antirelog.event.PvpStoppedEvent.StopReason;
 import ru.leymooo.antirelog.manager.PvPManager;
 import ru.leymooo.antirelog.util.Utils;
 import ru.leymooo.antirelog.util.VersionUtils;
@@ -27,16 +31,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class PvPListener implements Listener {
 
-    private final static String META_KEY = "ar-f-shooter";
+    private static final String META_KEY = "ar-f-shooter";
 
-    private final Plugin plugin;
+    private final Antirelog plugin;
     private final PvPManager pvpManager;
     private final Messages messages;
     private final Settings settings;
     private final Map<Player, AtomicInteger> allowedTeleports = new HashMap<>();
 
-
-    public PvPListener(Plugin plugin, PvPManager pvpManager, Settings settings) {
+    public PvPListener(Antirelog plugin, PvPManager pvpManager, Settings settings) {
         this.plugin = plugin;
         this.pvpManager = pvpManager;
         this.settings = settings;
@@ -44,7 +47,7 @@ public class PvPListener implements Listener {
         plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
             allowedTeleports.values().forEach(ai -> ai.set(ai.get() + 1));
             allowedTeleports.values().removeIf(ai -> ai.get() >= 5);
-        }, 1l, 1l);
+        }, 1L, 1L);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -66,8 +69,9 @@ public class PvPListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onCombust(EntityCombustByEntityEvent event) {
-        if (!(event.getEntity() instanceof Player))
+        if (!(event.getEntity() instanceof Player)) {
             return;
+        }
         Player target = (Player) event.getEntity();
         Player damager = getDamager(event.getCombuster());
         pvpManager.playerDamagedByPlayer(damager, target);
@@ -79,7 +83,6 @@ public class PvPListener implements Listener {
             event.getProjectile().setMetadata(META_KEY, new FixedMetadataValue(plugin, event.getEntity().getUniqueId()));
         }
     }
-
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPotionSplash(PotionSplashEvent e) {
@@ -99,12 +102,10 @@ public class PvPListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent ev) {
-
         if (settings.isDisableTeleportsInPvp() && pvpManager.isInPvP(ev.getPlayer())) {
-            if (allowedTeleports.containsKey(ev.getPlayer())) { //allow all teleport in 4-5 ticks after chorus or ender pearl
+            if (allowedTeleports.containsKey(ev.getPlayer())) {
                 return;
             }
-
             if ((VersionUtils.isVersion(9) && ev.getCause() == TeleportCause.CHORUS_FRUIT) || ev.getCause() == TeleportCause.ENDER_PEARL) {
                 allowedTeleports.put(ev.getPlayer(), new AtomicInteger(0));
                 return;
@@ -113,7 +114,7 @@ public class PvPListener implements Listener {
                 ev.setCancelled(true);
                 return;
             }
-            if (ev.getFrom().distanceSquared(ev.getTo()) > 100) { //10 = 10 blocks
+            if (ev.getFrom().distanceSquared(ev.getTo()) > 100) {
                 ev.setCancelled(true);
             }
         }
@@ -134,13 +135,19 @@ public class PvPListener implements Listener {
         }
     }
 
-
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onKick(PlayerKickEvent e) {
         Player player = e.getPlayer();
 
+        if (plugin.isDisabling()) {
+            if (pvpManager.isInPvP(player) || pvpManager.isInSilentPvP(player)) {
+                pvpManager.stopPvPSilentWithEvent(player, StopReason.SERVER_SHUTDOWN);
+            }
+            return;
+        }
+
         if (pvpManager.isInSilentPvP(player)) {
-            pvpManager.stopPvPSilent(player);
+            pvpManager.stopPvPSilentWithEvent(player, StopReason.KICK);
             return;
         }
 
@@ -148,10 +155,11 @@ public class PvPListener implements Listener {
             return;
         }
 
-        pvpManager.stopPvPSilent(player);
+        int timeRemaining = pvpManager.getTimeRemainingInPvP(player);
+        pvpManager.stopPvPSilentWithEvent(player, StopReason.KICK);
 
         if (settings.getKickMessages().isEmpty()) {
-            kickedInPvp(player);
+            kickedInPvp(player, timeRemaining);
             return;
         }
         if (e.getReason() == null) {
@@ -160,14 +168,15 @@ public class PvPListener implements Listener {
         String reason = ChatColor.stripColor(e.getReason().toLowerCase());
         for (String killReason : settings.getKickMessages()) {
             if (reason.contains(killReason.toLowerCase())) {
-                kickedInPvp(player);
+                kickedInPvp(player, timeRemaining);
                 return;
             }
         }
     }
 
-    private void kickedInPvp(Player player) {
+    private void kickedInPvp(Player player, int timeRemaining) {
         if (settings.isKillOnKick()) {
+            Bukkit.getPluginManager().callEvent(new PvpPlayerKilledEvent(player, KillReason.KICKED_IN_PVP, timeRemaining));
             player.setHealth(0);
             sendLeavedInPvpMessage(player);
         }
@@ -182,18 +191,25 @@ public class PvPListener implements Listener {
         if (settings.isHideLeaveMessage()) {
             e.setQuitMessage(null);
         }
+
+        if (plugin.isDisabling()) {
+            if (pvpManager.isInPvP(e.getPlayer()) || pvpManager.isInSilentPvP(e.getPlayer())) {
+                pvpManager.stopPvPSilentWithEvent(e.getPlayer(), StopReason.SERVER_SHUTDOWN);
+            }
+            return;
+        }
+
         if (pvpManager.isInPvP(e.getPlayer())) {
-            pvpManager.stopPvPSilent(e.getPlayer());
+            int timeRemaining = pvpManager.getTimeRemainingInPvP(e.getPlayer());
+            pvpManager.stopPvPSilentWithEvent(e.getPlayer(), StopReason.QUIT);
             if (settings.isKillOnLeave()) {
                 sendLeavedInPvpMessage(e.getPlayer());
+                Bukkit.getPluginManager().callEvent(new PvpPlayerKilledEvent(e.getPlayer(), KillReason.QUIT_IN_PVP, timeRemaining));
                 e.getPlayer().setHealth(0);
-            } else {
-                pvpManager.stopPvPSilent(e.getPlayer());
             }
             runCommands(e.getPlayer());
-        }
-        if (pvpManager.isInSilentPvP(e.getPlayer())) {
-            pvpManager.stopPvPSilent(e.getPlayer());
+        } else if (pvpManager.isInSilentPvP(e.getPlayer())) {
+            pvpManager.stopPvPSilentWithEvent(e.getPlayer(), StopReason.QUIT);
         }
     }
 
@@ -202,9 +218,8 @@ public class PvPListener implements Listener {
         if (settings.isHideDeathMessage()) {
             e.setDeathMessage(null);
         }
-
         if (pvpManager.isInSilentPvP(e.getEntity()) || pvpManager.isInPvP(e.getEntity())) {
-            pvpManager.stopPvPSilent(e.getEntity());
+            pvpManager.stopPvPSilentWithEvent(e.getEntity(), StopReason.DEATH);
         }
     }
 
