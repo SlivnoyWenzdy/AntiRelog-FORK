@@ -122,9 +122,9 @@
         </dependency>
         <!-- maven repo is dead, do `mvn clean install` your self https://github.com/Leymooo/AnnotatedYAMLConfiguration -->
         <dependency>
-            <groupId>ru.leymooo</groupId>
+            <groupId>com.github.Leymooo.AnnotatedYAMLConfiguration</groupId>
             <artifactId>AnnotatedYAMLConfiguration-bukkit</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <version>2cbe5f9fa3</version>
         </dependency>
         <dependency>
             <groupId>net.essentialsx</groupId>
@@ -171,9 +171,9 @@
             <systemPath>${project.basedir}/libs/CMI-API9.7.0.1.jar</systemPath>
         </dependency>
         <dependency>
-            <groupId>com.comphenix.protocol</groupId>
+            <groupId>net.dmulloy2</groupId>
             <artifactId>ProtocolLib</artifactId>
-            <version>4.7.1-SNAPSHOT</version>
+            <version>5.4.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
