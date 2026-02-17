@@ -61,7 +61,7 @@ public class Antirelog extends JavaPlugin {
         disabling = true;
         AntiRelogAPI.disable();
         if (pvpManager != null) {
-            pvpManager.onPluginDisable(); // Да ну теперь не будет убивать всех при рестарте
+            pvpManager.onPluginDisable();
         }
         if (cooldownManager != null) {
             cooldownManager.clearAll();
@@ -169,7 +169,11 @@ public class Antirelog extends JavaPlugin {
     public void reloadSettings() {
         settings.getConfigurationProvider().reloadFileFromDisk();
         if (settings.getConfigurationProvider().isFileSuccessfullyLoaded()) {
-            settings.load();
+            if (!settings.load()) {
+                settings.loaded();
+            }
+        } else {
+            settings.loaded();
         }
         getServer().getScheduler().cancelTasks(this);
         pvpManager.onPluginDisable();

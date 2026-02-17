@@ -2,30 +2,36 @@ package ru.leymooo.antirelog.listeners;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.*;
 import org.bukkit.event.player.*;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import ru.leymooo.antirelog.Antirelog;
+import ru.leymooo.antirelog.config.BlockedBlocksNotifications;
 import ru.leymooo.antirelog.config.Messages;
 import ru.leymooo.antirelog.config.Settings;
 import ru.leymooo.antirelog.event.PvpPlayerKilledEvent;
 import ru.leymooo.antirelog.event.PvpPlayerKilledEvent.KillReason;
 import ru.leymooo.antirelog.event.PvpStoppedEvent.StopReason;
 import ru.leymooo.antirelog.manager.PvPManager;
+import ru.leymooo.antirelog.util.ActionBar;
 import ru.leymooo.antirelog.util.Utils;
 import ru.leymooo.antirelog.util.VersionUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -65,6 +71,86 @@ public class PvPListener implements Listener {
         if (settings.isCancelInteractWithEntities() && pvpManager.isPvPModeEnabled() && pvpManager.isInPvP(event.getPlayer())) {
             event.setCancelled(true);
         }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInteractBlock(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
+        if (!pvpManager.isInPvP(event.getPlayer())) {
+            return;
+        }
+        Set<String> blocked = settings.getBlockedContainers();
+        if (blocked.isEmpty()) {
+            return;
+        }
+        Block block = event.getClickedBlock();
+        if (block == null) {
+            return;
+        }
+        String typeName = block.getType().name();
+        if (blocked.contains(typeName) || isShulkerBox(block.getType(), blocked)) {
+            event.setCancelled(true);
+            String message = Utils.color(messages.getContainerBlocked());
+            if (!message.isEmpty()) {
+                event.getPlayer().sendMessage(message);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onBlockPlace(BlockPlaceEvent event) {
+        if (!pvpManager.isInPvP(event.getPlayer())) {
+            return;
+        }
+        Set<String> blocked = settings.getBlockedBlocks();
+        if (blocked.isEmpty()) {
+            return;
+        }
+        String typeName = event.getBlock().getType().name();
+        if (!blocked.contains(typeName)) {
+            return;
+        }
+        event.setCancelled(true);
+        BlockedBlocksNotifications notifications = settings.getBlockedBlocksNotifications();
+        if (notifications.isChatMessage()) {
+            String message = Utils.color(messages.getBlockPlaceBlocked());
+            if (!message.isEmpty()) {
+                event.getPlayer().sendMessage(message);
+            }
+        }
+        if (notifications.isActionbarMessage()) {
+            String message = Utils.color(messages.getBlockPlaceBlockedActionbar());
+            if (!message.isEmpty()) {
+                ActionBar.sendAction(event.getPlayer(), message);
+            }
+        }
+        if (notifications.isTitleMessage()) {
+            sendBlockedTitle(event.getPlayer());
+        }
+    }
+
+    private void sendBlockedTitle(Player player) {
+        String title = messages.getBlockPlaceBlockedTitle();
+        String subtitle = messages.getBlockPlaceBlockedSubtitle();
+        title = title.isEmpty() ? null : Utils.color(title);
+        subtitle = subtitle.isEmpty() ? null : Utils.color(subtitle);
+        if (title == null && subtitle == null) {
+            return;
+        }
+        if (VersionUtils.isVersion(11)) {
+            player.sendTitle(title, subtitle, 5, 20, 5);
+        } else {
+            player.sendTitle(title, subtitle);
+        }
+    }
+
+    private boolean isShulkerBox(Material material, Set<String> blocked) {
+        if (!blocked.contains("SHULKER_BOX")) {
+            return false;
+        }
+        return material.name().endsWith("SHULKER_BOX");
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

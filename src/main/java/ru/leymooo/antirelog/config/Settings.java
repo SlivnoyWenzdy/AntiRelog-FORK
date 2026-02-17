@@ -10,7 +10,7 @@ public class Settings extends Configuration {
 
     @Final
     @Key("config-version")
-    private String configVersion = "1.8";
+    private String configVersion = "2.1";
     private Messages messages = new Messages();
 
     @Comment("Кулдавн для обычных золотых яблок во время пвп.")
@@ -25,7 +25,7 @@ public class Settings extends Configuration {
     @Key("ender-pearl-cooldown")
     private int enderPearlCooldown = 15;
 
-    @Comment({"Кулдавн для корусов во время пвп.", "https://minecraft-ru.gamepedia.com/Плод_коруса", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
+    @Comment({"Кулдавн для корусов во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
     @Key("chorus-cooldown")
     private int chorusCooldown = 7;
 
@@ -36,6 +36,30 @@ public class Settings extends Configuration {
     @Comment({"Кулдавн для тотемов бесмертия во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
     @Key("totem-cooldown")
     private int totemCooldown = 60;
+
+    @Comment({"Кулдавн для зелий исцеления (питьевых и взрывных) во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
+    @Key("healing-potion-cooldown")
+    private int healingPotionCooldown = 0;
+
+    @Comment({"Кулдавн для зелий регенерации (питьевых и взрывных) во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
+    @Key("regeneration-potion-cooldown")
+    private int regenerationPotionCooldown = 0;
+
+    @Comment({"Кулдавн для зелий силы (питьевых и взрывных) во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
+    @Key("strength-potion-cooldown")
+    private int strengthPotionCooldown = 0;
+
+    @Comment({"Кулдавн для зелий скорости (питьевых и взрывных) во время пвп.", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
+    @Key("speed-potion-cooldown")
+    private int speedPotionCooldown = 0;
+
+    @Comment({"Кулдавн для пузырьков опыта во время пвп (в секундах, поддерживает дробные значения, например 0.5).", "Значение 0 отключает кулдаун; -1 отключает использование во время пвп"})
+    @Key("experience-bottle-cooldown")
+    private double experienceBottleCooldown = 0;
+
+    @Comment({"Настройки уведомлений для каждого типа кулдауна.", "chat-message - сообщение в чат когда кулдаун активен", "actionbar-message - сообщение в actionbar при выборе предмета на кулдауне", "blocked-message - сообщение когда предмет заблокирован в PvP"})
+    @Key("cooldown-notifications")
+    private CooldownNotifications cooldownNotifications = new CooldownNotifications();
 
     @Comment("Длительность пвп")
     @Key("pvp-time")
@@ -54,6 +78,27 @@ public class Settings extends Configuration {
     @Key("cancel-interact-with-entities")
     @Comment("Отменять ли взаимодействие с энтити, во время пвп")
     private boolean cancelInteractWithEntities = false;
+
+    @Comment({"Блокировать ли открытие определённых блоков во время пвп?",
+            "Доступные значения: ENDER_CHEST, CHEST, TRAPPED_CHEST, BARREL, SHULKER_BOX,",
+            "CRAFTING_TABLE, ENCHANTING_TABLE, ANVIL, BREWING_STAND, BEACON, GRINDSTONE, SMITHING_TABLE, LOOM, CARTOGRAPHY_TABLE, STONECUTTER",
+            "blocked-containers:", "- ENDER_CHEST", "- CRAFTING_TABLE"})
+    @Key("blocked-containers")
+    private List<String> blockedContainers = Arrays.asList("ENDER_CHEST");
+    @Ignore
+    private Set<String> blockedContainersSet;
+
+    @Comment({"Блокировать ли установку определённых блоков во время пвп?",
+            "Например: COBWEB, LAVA, WATER, FIRE, TNT",
+            "blocked-blocks:", "- COBWEB"})
+    @Key("blocked-blocks")
+    private List<String> blockedBlocks = Arrays.asList("COBWEB");
+    @Ignore
+    private Set<String> blockedBlocksSet;
+
+    @Comment("Настройки уведомлений для заблокированных блоков")
+    @Key("blocked-blocks-notifications")
+    private BlockedBlocksNotifications blockedBlocksNotifications = new BlockedBlocksNotifications();
 
     @Comment("Убивать ли игрока если он вышел во время пвп?")
     @Key("kill-on-leave")
@@ -129,6 +174,8 @@ public class Settings extends Configuration {
     public void loaded() {
         this.ignoredWgRegionsSet = ignoredWgRegions.stream().map(String::toLowerCase).collect(Collectors.toSet());
         this.disabledWorldsSet = disabledWorlds.stream().map(String::toLowerCase).collect(Collectors.toSet());
+        this.blockedContainersSet = blockedContainers.stream().map(String::toUpperCase).collect(Collectors.toSet());
+        this.blockedBlocksSet = blockedBlocks.stream().map(String::toUpperCase).collect(Collectors.toSet());
     }
 
     public String getConfigVersion() {
@@ -163,6 +210,22 @@ public class Settings extends Configuration {
         return totemCooldown;
     }
 
+    public int getHealingPotionCooldown() {
+        return healingPotionCooldown;
+    }
+
+    public int getRegenerationPotionCooldown() {
+        return regenerationPotionCooldown;
+    }
+
+    public int getStrengthPotionCooldown() {
+        return strengthPotionCooldown;
+    }
+
+    public int getSpeedPotionCooldown() {
+        return speedPotionCooldown;
+    }
+
     public int getPvpTime() {
         return pvpTime;
     }
@@ -173,6 +236,18 @@ public class Settings extends Configuration {
 
     public boolean isCancelInteractWithEntities() {
         return cancelInteractWithEntities;
+    }
+
+    public Set<String> getBlockedContainers() {
+        return blockedContainersSet;
+    }
+
+    public Set<String> getBlockedBlocks() {
+        return blockedBlocksSet;
+    }
+
+    public BlockedBlocksNotifications getBlockedBlocksNotifications() {
+        return blockedBlocksNotifications;
     }
 
     public List<String> getCommandsOnPowerupsDisable() {
@@ -243,6 +318,14 @@ public class Settings extends Configuration {
         return disabledWorldsSet;
     }
 
+    public double getExperienceBottleCooldown() {
+        return experienceBottleCooldown;
+    }
+
+    public CooldownNotifications getCooldownNotifications() {
+        return cooldownNotifications;
+    }
+
     @Override
     public String toString() {
         return "Settings{" +
@@ -254,10 +337,19 @@ public class Settings extends Configuration {
                 ", chorusCooldown=" + chorusCooldown +
                 ", fireworkCooldown=" + fireworkCooldown +
                 ", totemCooldown=" + totemCooldown +
+                ", healingPotionCooldown=" + healingPotionCooldown +
+                ", regenerationPotionCooldown=" + regenerationPotionCooldown +
+                ", strengthPotionCooldown=" + strengthPotionCooldown +
+                ", speedPotionCooldown=" + speedPotionCooldown +
+                ", experienceBottleCooldown=" + experienceBottleCooldown +
+                ", cooldownNotifications=" + cooldownNotifications +
                 ", pvpTime=" + pvpTime +
                 ", disableCommandsInPvp=" + disableCommandsInPvp +
                 ", whiteListedCommands=" + whiteListedCommands +
                 ", cancelInteractWithEntities=" + cancelInteractWithEntities +
+                ", blockedContainers=" + blockedContainers +
+                ", blockedBlocks=" + blockedBlocks +
+                ", blockedBlocksNotifications=" + blockedBlocksNotifications +
                 ", killOnLeave=" + killOnLeave +
                 ", killOnKick=" + killOnKick +
                 ", runCommandsOnKick=" + runCommandsOnKick +
