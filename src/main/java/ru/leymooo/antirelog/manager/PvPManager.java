@@ -358,13 +358,7 @@ public class PvPManager {
         bossbarManager.clearBossbar(player);
     }
 
-    public boolean forceStartPvP(Player player, int pvpTime) {
-        if (isInIgnoredWorld(player)) {
-            return false;
-        }
-        if (isInIgnoredRegion(player)) {
-            return false;
-        }
+    public void forceStartPvP(Player player, int pvpTime) {
         if (isInPvP(player) || isInSilentPvP(player)) {
             stopPvPSilentInternal(player);
         }
@@ -380,16 +374,9 @@ public class PvPManager {
         sendTitles(player, true);
         updatePvpMode(player, false, actualTime > 0 ? actualTime : pvpTime);
         player.setNoDamageTicks(0);
-        return true;
     }
 
-    public boolean forceStartPvPSilent(Player player, int pvpTime) {
-        if (isInIgnoredWorld(player)) {
-            return false;
-        }
-        if (isInIgnoredRegion(player)) {
-            return false;
-        }
+    public void forceStartPvPSilent(Player player, int pvpTime) {
         if (isInPvP(player) || isInSilentPvP(player)) {
             stopPvPSilentInternal(player);
         }
@@ -400,6 +387,27 @@ public class PvPManager {
         bossbarManager.createPlayerData(player, actualTime, true);
         updatePvpMode(player, true, actualTime > 0 ? actualTime : pvpTime);
         player.setNoDamageTicks(0);
+    }
+
+    public boolean forceStartPvPChecked(Player player, int pvpTime) {
+        if (isInIgnoredWorld(player)) {
+            return false;
+        }
+        if (isInIgnoredRegion(player)) {
+            return false;
+        }
+        forceStartPvP(player, pvpTime);
+        return true;
+    }
+
+    public boolean forceStartPvPSilentChecked(Player player, int pvpTime) {
+        if (isInIgnoredWorld(player)) {
+            return false;
+        }
+        if (isInIgnoredRegion(player)) {
+            return false;
+        }
+        forceStartPvPSilent(player, pvpTime);
         return true;
     }
 
