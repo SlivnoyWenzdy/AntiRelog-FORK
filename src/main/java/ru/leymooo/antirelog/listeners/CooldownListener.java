@@ -335,16 +335,21 @@ public class CooldownListener implements Listener {
 
     @EventHandler
     public void onPvpStart(PvpStartedEvent event) {
+        Player attacker = event.getAttacker();
+        Player defender = event.getDefender();
+
         switch (event.getPvpStatus()) {
             case ALL_NOT_IN_PVP:
-                cooldownManager.enteredToPvp(event.getDefender());
-                cooldownManager.enteredToPvp(event.getAttacker());
+                cooldownManager.enteredToPvp(defender);
+                if (attacker != defender) {
+                    cooldownManager.enteredToPvp(attacker);
+                }
                 break;
             case ATTACKER_IN_PVP:
-                cooldownManager.enteredToPvp(event.getDefender());
+                cooldownManager.enteredToPvp(defender);
                 break;
             case DEFENDER_IN_PVP:
-                cooldownManager.enteredToPvp(event.getAttacker());
+                cooldownManager.enteredToPvp(attacker);
                 break;
         }
     }
