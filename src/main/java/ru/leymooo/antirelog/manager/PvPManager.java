@@ -393,6 +393,19 @@ public class PvPManager {
         return true;
     }
 
+    public void resetPvPTimer(Player player) {
+        if (!isInPvP(player)) {
+            return;
+        }
+        int pvpTime = getPlayerPvPTime(player);
+        pvpMap.put(player, pvpTime);
+        PlayerData data = bossbarManager.getPlayerData(player);
+        if (data != null) {
+            data.setDelay(pvpTime);
+            data.updateBossBar(settings);
+        }
+    }
+
     public boolean forceStartPvPSilent(Player player, int pvpTime, boolean checked) {
         if (checked) {
             if (isInIgnoredWorld(player)) {
@@ -409,7 +422,7 @@ public class PvPManager {
             stopPvPSilentInternal(player);
         }
         customPvpTimes.put(player, pvpTime);
-        bossbarManager.createPlayerData(player, pvpTime, false);
+        bossbarManager.createPlayerData(player, pvpTime, true);
         if (settings.isDisablePowerups()) {
             powerUpsManager.disablePowerUps(player, null);
         }
