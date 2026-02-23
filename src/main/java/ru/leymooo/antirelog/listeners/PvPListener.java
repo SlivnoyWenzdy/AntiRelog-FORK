@@ -413,14 +413,37 @@ public class PvPListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onCommand(PlayerCommandPreprocessEvent e) {
         if (settings.isDisableCommandsInPvp() && pvpManager.isInPvP(e.getPlayer())) {
-            String command = e.getMessage().split(" ")[0].replaceFirst("/", "");
-            if (pvpManager.isCommandWhiteListed(command)) {
+            String fullCommand = e.getMessage().split(" ")[0].replaceFirst("/", "").toLowerCase();
+
+            String command = fullCommand.contains(":")
+                    ? fullCommand.split(":")[1]
+                    : fullCommand;
+
+            if (pvpManager.isCommandWhiteListed(command) || pvpManager.isCommandWhiteListed(fullCommand)) {
                 return;
             }
+
             e.setCancelled(true);
             String message = Utils.color(messages.getCommandsDisabled());
             if (!message.isEmpty()) {
                 e.getPlayer().sendMessage(Utils.replaceTime(message, pvpManager.getTimeRemainingInPvP(e.getPlayer())));
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onInventoryOpen(org.bukkit.event.inventory.InventoryOpenEvent event) {
+        if (!(event.getPlayer() instanceof Player)) return;
+        Player player = (Player) event.getPlayer();
+
+        if (!pvpManager.isInPvP(player)) return;
+
+        if (event.getInventory().getType() != InventoryType.PLAYER
+                && event.getInventory().getType() != InventoryType.CRAFTING) {
+            event.setCancelled(true);
+            String message = Utils.color(messages.getCommandsDisabled());
+            if (!message.isEmpty()) {
+                player.sendMessage(Utils.replaceTime(message, pvpManager.getTimeRemainingInPvP(player)));
             }
         }
     }
