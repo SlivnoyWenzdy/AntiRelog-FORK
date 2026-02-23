@@ -73,7 +73,8 @@ public class PvPListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onInteractWithEntity(PlayerInteractEntityEvent event) {
-        if (settings.isCancelInteractWithEntities() && pvpManager.isPvPModeEnabled() && pvpManager.isInPvP(event.getPlayer())) {
+        if (settings.isCancelInteractWithEntities() && pvpManager.isPvPModeEnabled()
+                && pvpManager.isInPvP(event.getPlayer())) {
             event.setCancelled(true);
         }
     }
@@ -204,7 +205,7 @@ public class PvPListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerInteractEquip(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
@@ -226,6 +227,9 @@ public class PvPListener implements Listener {
         }
         if (isArmorItem(item.getType())) {
             event.setCancelled(true);
+            event.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+            event.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
+            player.updateInventory();
             String message = Utils.color(messages.getEquipDisabledInPvp());
             if (!message.isEmpty()) {
                 player.sendMessage(message);
@@ -306,7 +310,8 @@ public class PvPListener implements Listener {
 
     private int getArmorSlotForItem(Material material, Player player) {
         String name = material.name();
-        if ((name.endsWith("_HELMET") || name.equals("CARVED_PUMPKIN") || name.endsWith("_HEAD") || name.endsWith("_SKULL"))
+        if ((name.endsWith("_HELMET") || name.equals("CARVED_PUMPKIN") || name.endsWith("_HEAD")
+                || name.endsWith("_SKULL"))
                 && isEmpty(player.getInventory().getHelmet())) {
             return 5;
         }
@@ -361,8 +366,10 @@ public class PvPListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onShootBow(EntityShootBowEvent event) {
-        if (VersionUtils.isVersion(14) && event.getProjectile() instanceof Firework && event.getEntity().getType() == EntityType.PLAYER) {
-            event.getProjectile().setMetadata(META_KEY, new FixedMetadataValue(plugin, event.getEntity().getUniqueId()));
+        if (VersionUtils.isVersion(14) && event.getProjectile() instanceof Firework
+                && event.getEntity().getType() == EntityType.PLAYER) {
+            event.getProjectile().setMetadata(META_KEY,
+                    new FixedMetadataValue(plugin, event.getEntity().getUniqueId()));
         }
     }
 
@@ -388,7 +395,8 @@ public class PvPListener implements Listener {
             if (allowedTeleports.containsKey(ev.getPlayer())) {
                 return;
             }
-            if ((VersionUtils.isVersion(9) && ev.getCause() == TeleportCause.CHORUS_FRUIT) || ev.getCause() == TeleportCause.ENDER_PEARL) {
+            if ((VersionUtils.isVersion(9) && ev.getCause() == TeleportCause.CHORUS_FRUIT)
+                    || ev.getCause() == TeleportCause.ENDER_PEARL) {
                 allowedTeleports.put(ev.getPlayer(), new AtomicInteger(0));
                 return;
             }
@@ -458,7 +466,8 @@ public class PvPListener implements Listener {
 
     private void kickedInPvp(Player player, int timeRemaining) {
         if (settings.isKillOnKick()) {
-            Bukkit.getPluginManager().callEvent(new PvpPlayerKilledEvent(player, KillReason.KICKED_IN_PVP, timeRemaining));
+            Bukkit.getPluginManager()
+                    .callEvent(new PvpPlayerKilledEvent(player, KillReason.KICKED_IN_PVP, timeRemaining));
             player.setHealth(0);
             sendLeavedInPvpMessage(player);
         }
@@ -486,7 +495,8 @@ public class PvPListener implements Listener {
             pvpManager.stopPvPSilentWithEvent(e.getPlayer(), StopReason.QUIT);
             if (settings.isKillOnLeave()) {
                 sendLeavedInPvpMessage(e.getPlayer());
-                Bukkit.getPluginManager().callEvent(new PvpPlayerKilledEvent(e.getPlayer(), KillReason.QUIT_IN_PVP, timeRemaining));
+                Bukkit.getPluginManager()
+                        .callEvent(new PvpPlayerKilledEvent(e.getPlayer(), KillReason.QUIT_IN_PVP, timeRemaining));
                 e.getPlayer().setHealth(0);
             }
             runCommands(e.getPlayer());
