@@ -34,6 +34,9 @@ import ru.leymooo.antirelog.util.ActionBar;
 import ru.leymooo.antirelog.util.Utils;
 import ru.leymooo.antirelog.util.VersionUtils;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class CooldownListener implements Listener {
@@ -91,30 +94,61 @@ public class CooldownListener implements Listener {
             cooldownType = isEnchantedGoldenApple(consumeItem) ? CooldownType.ENC_GOLDEN_APPLE : CooldownType.GOLDEN_APPLE;
         }
 
-        CooldownType potionCooldownType = getPotionCooldownType(consumeItem);
-        if (potionCooldownType != null) {
-            cooldownType = potionCooldownType;
-        }
-
-        if (cooldownType == null) {
+        if (cooldownType != null) {
+            long cooldownMs = cooldownType.getCooldownMs(settings);
+            if (cooldownMs == 0 || pvpManager.isBypassed(event.getPlayer())) {
+                return;
+            }
+            if (cooldownMs < 0) {
+                cancelPotionOrItemIfInPvp(event, cooldownType, event.getPlayer());
+                return;
+            }
+            if (checkPotionOrItemCooldown(event.getPlayer(), cooldownType, cooldownMs)) {
+                event.setCancelled(true);
+                return;
+            }
+            fireCooldownEvent(event.getPlayer(), cooldownType, Action.ITEM_USED, cooldownMs);
+            cooldownManager.addCooldown(event.getPlayer(), cooldownType, pvpManager.isInPvP(event.getPlayer()));
+            addItemCooldownIfNeeded(event.getPlayer(), cooldownType);
             return;
         }
 
-        long cooldownMs = cooldownType.getCooldownMs(settings);
-        if (cooldownMs == 0 || pvpManager.isBypassed(event.getPlayer())) {
+        List<CooldownType> potionTypes = getAllPotionCooldownTypes(consumeItem);
+        if (potionTypes.isEmpty()) {
             return;
         }
-        if (cooldownMs < 0) {
-            cancelPotionOrItemIfInPvp(event, cooldownType, event.getPlayer());
+
+        if (pvpManager.isBypassed(event.getPlayer())) {
             return;
         }
-        if (checkPotionOrItemCooldown(event.getPlayer(), cooldownType, cooldownMs)) {
-            event.setCancelled(true);
-            return;
+
+        for (CooldownType type : potionTypes) {
+            long cooldownMs = type.getCooldownMs(settings);
+            if (cooldownMs == 0) {
+                continue;
+            }
+            if (cooldownMs < 0) {
+                cancelPotionOrItemIfInPvp(event, type, event.getPlayer());
+                if (event.isCancelled()) {
+                    return;
+                }
+                continue;
+            }
+            if (checkPotionOrItemCooldown(event.getPlayer(), type, cooldownMs)) {
+                event.setCancelled(true);
+                return;
+            }
         }
-        fireCooldownEvent(event.getPlayer(), cooldownType, Action.ITEM_USED, cooldownMs);
-        cooldownManager.addCooldown(event.getPlayer(), cooldownType, pvpManager.isInPvP(event.getPlayer()));
-        addItemCooldownIfNeeded(event.getPlayer(), cooldownType);
+
+        for (CooldownType type : potionTypes) {
+            long cooldownMs = type.getCooldownMs(settings);
+            if (cooldownMs <= 0) {
+                continue;
+            }
+            fireCooldownEvent(event.getPlayer(), type, Action.ITEM_USED, cooldownMs);
+            cooldownManager.addCooldown(event.getPlayer(), type, pvpManager.isInPvP(event.getPlayer()));
+            addItemCooldownIfNeeded(event.getPlayer(), type);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -133,6 +167,67 @@ public class CooldownListener implements Listener {
             handleEnderPearl(e, (Player) e.getEntity().getShooter());
         }
     }
+    private CooldownType matchBasePotionType(PotionData data) {
+        String typeName = data.getType().name();
+        if (typeName.equals("INSTANT_HEAL") || typeName.equals("HEALING")) {
+            return CooldownType.HEALING_POTION;
+        }
+        if (typeName.equals("REGEN") || typeName.equals("REGENERATION")) {
+            return CooldownType.REGENERATION_POTION;
+        }
+        if (typeName.equals("STRENGTH") || typeName.equals("INCREASE_DAMAGE")) {
+            return CooldownType.STRENGTH_POTION;
+        }
+        if (typeName.equals("SPEED") || typeName.equals("SWIFTNESS")) {
+            return CooldownType.SPEED_POTION;
+        }
+        return null;
+    }
+
+    private List<CooldownType> getAllPotionCooldownTypesFromMeta(PotionMeta meta) {
+        List<CooldownType> types = new ArrayList<>();
+        try {
+            PotionData data = meta.getBasePotionData();
+            if (data != null) {
+                CooldownType baseType = matchBasePotionType(data);
+                if (baseType != null) {
+                    types.add(baseType);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        if (meta.hasCustomEffects()) {
+            for (PotionEffect effect : meta.getCustomEffects()) {
+                CooldownType type = matchEffectType(effect.getType());
+                if (type != null && !types.contains(type)) {
+                    types.add(type);
+                }
+            }
+        }
+        return types;
+    }
+
+    private List<CooldownType> getAllPotionCooldownTypes(ThrownPotion thrownPotion) {
+        ItemStack item = thrownPotion.getItem();
+        if (!(item.getItemMeta() instanceof PotionMeta)) {
+            return Collections.emptyList();
+        }
+        return getAllPotionCooldownTypesFromMeta((PotionMeta) item.getItemMeta());
+    }
+
+    private List<CooldownType> getAllPotionCooldownTypes(ItemStack item) {
+        if (item == null) {
+            return Collections.emptyList();
+        }
+        Material type = item.getType();
+        if (type != Material.POTION && type != Material.SPLASH_POTION && type != Material.LINGERING_POTION) {
+            return Collections.emptyList();
+        }
+        if (!(item.getItemMeta() instanceof PotionMeta)) {
+            return Collections.emptyList();
+        }
+        return getAllPotionCooldownTypesFromMeta((PotionMeta) item.getItemMeta());
+    }
 
     private void handleThrownPotion(ProjectileLaunchEvent e, ThrownPotion thrownPotion) {
         if (!(thrownPotion.getShooter() instanceof Player)) {
@@ -143,37 +238,49 @@ public class CooldownListener implements Listener {
             return;
         }
 
-        CooldownType cooldownType = getSplashPotionCooldownType(thrownPotion);
-        if (cooldownType == null) {
+        List<CooldownType> potionTypes = getAllPotionCooldownTypes(thrownPotion);
+        if (potionTypes.isEmpty()) {
             return;
         }
 
-        long cooldownMs = cooldownType.getCooldownMs(settings);
-        if (cooldownMs == 0) {
-            return;
-        }
-        if (cooldownMs < 0) {
-            if (pvpManager.isInPvP(player)) {
-                e.setCancelled(true);
-                CooldownNotificationEntry notification = cooldownType.getNotification(settings);
-                if (notification.isBlockedMessage()) {
-                    String message = settings.getMessages().getPotionDisabledInPvp();
-                    if (!message.isEmpty()) {
-                        player.sendMessage(Utils.color(message));
-                    }
-                }
-                fireCooldownEvent(player, cooldownType, Action.ITEM_BLOCKED, 0);
+        for (CooldownType cooldownType : potionTypes) {
+            long cooldownMs = cooldownType.getCooldownMs(settings);
+            if (cooldownMs == 0) {
+                continue;
             }
-            return;
+            if (cooldownMs < 0) {
+                if (pvpManager.isInPvP(player)) {
+                    e.setCancelled(true);
+                    CooldownNotificationEntry notification = cooldownType.getNotification(settings);
+                    if (notification.isBlockedMessage()) {
+                        String message = settings.getMessages().getPotionDisabledInPvp();
+                        if (!message.isEmpty()) {
+                            player.sendMessage(Utils.color(message));
+                        }
+                    }
+                    fireCooldownEvent(player, cooldownType, Action.ITEM_BLOCKED, 0);
+                    return;
+                }
+                continue;
+            }
+            if (checkPotionCooldown(player, cooldownType, cooldownMs)) {
+                e.setCancelled(true);
+                return;
+            }
         }
-        if (checkPotionCooldown(player, cooldownType, cooldownMs)) {
-            e.setCancelled(true);
-            return;
+
+        for (CooldownType cooldownType : potionTypes) {
+            long cooldownMs = cooldownType.getCooldownMs(settings);
+            if (cooldownMs <= 0) {
+                continue;
+            }
+            fireCooldownEvent(player, cooldownType, Action.ITEM_USED, cooldownMs);
+            cooldownManager.addCooldown(player, cooldownType, pvpManager.isInPvP(player));
+            addItemCooldownIfNeeded(player, cooldownType);
         }
-        fireCooldownEvent(player, cooldownType, Action.ITEM_USED, cooldownMs);
-        cooldownManager.addCooldown(player, cooldownType, pvpManager.isInPvP(player));
-        addItemCooldownIfNeeded(player, cooldownType);
     }
+
+
 
     private void handleExperienceBottle(ProjectileLaunchEvent e, Player player) {
         if (pvpManager.isBypassed(player)) {
