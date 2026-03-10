@@ -537,6 +537,9 @@ public class CooldownListener implements Listener {
     }
 
     private void addItemCooldownIfNeeded(Player player, CooldownType cooldownType) {
+        if (isPotionCooldownType(cooldownType)) {
+            return;
+        }
         long cooldownMs = cooldownType.getCooldownMs(settings);
         if (pvpManager.isPvPModeEnabled()) {
             if (pvpManager.isInPvP(player)) {
