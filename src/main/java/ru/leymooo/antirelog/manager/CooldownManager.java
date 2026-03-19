@@ -36,7 +36,11 @@ public class CooldownManager {
         this.plugin = plugin;
         this.settings = settings;
         if (plugin.isProtocolLibEnabled()) {
-            scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+            scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread thread = new Thread(r, "AntiRelog-Cooldown");
+                thread.setDaemon(true);
+                return thread;
+            });
         } else {
             scheduledExecutorService = null;
         }
@@ -75,11 +79,15 @@ public class CooldownManager {
     }
 
     public void addItemCooldown(Player player, CooldownType type, long duration) {
+        addItemCooldown(player, type, duration, type.getMaterial());
+    }
+
+    public void addItemCooldown(Player player, CooldownType type, long duration, Material material) {
         if (!plugin.isProtocolLibEnabled()) {
             return;
         }
         int durationInTicks = (int) Math.ceil(duration / 50.0);
-        PacketContainer packetContainer = ProtocolLibUtils.createCooldownPacket(type.getMaterial(), durationInTicks);
+        PacketContainer packetContainer = ProtocolLibUtils.createCooldownPacket(material, durationInTicks);
         ProtocolLibUtils.sendPacket(packetContainer, player);
         ScheduledFuture existingFuture = futures.get(player, type);
         if (existingFuture != null && !existingFuture.isCancelled()) {
@@ -87,7 +95,7 @@ public class CooldownManager {
         }
         if (hasInfiniteCooldown(player, type)) {
             ScheduledFuture future = scheduledExecutorService.schedule(() -> {
-                addItemCooldown(player, type, INFINITE_VISUAL_DURATION);
+                addItemCooldown(player, type, INFINITE_VISUAL_DURATION, material);
             }, duration, TimeUnit.MILLISECONDS);
             futures.put(player, type, future);
         } else {
@@ -189,6 +197,13 @@ public class CooldownManager {
         cooldowns.clear();
         infiniteCooldowns.clear();
         pvpCooldowns.clear();
+    }
+
+    public void shutdown() {
+        clearAll();
+        if (scheduledExecutorService != null && !scheduledExecutorService.isShutdown()) {
+            scheduledExecutorService.shutdownNow();
+        }
     }
 
     public Settings getSettings() {

@@ -147,7 +147,6 @@ public class CooldownListener implements Listener {
             }
             fireCooldownEvent(event.getPlayer(), type, Action.ITEM_USED, cooldownMs);
             cooldownManager.addCooldown(event.getPlayer(), type, pvpManager.isInPvP(event.getPlayer()));
-            addItemCooldownIfNeeded(event.getPlayer(), type);
         }
     }
 
@@ -276,7 +275,6 @@ public class CooldownListener implements Listener {
             }
             fireCooldownEvent(player, cooldownType, Action.ITEM_USED, cooldownMs);
             cooldownManager.addCooldown(player, cooldownType, pvpManager.isInPvP(player));
-            addItemCooldownIfNeeded(player, cooldownType);
         }
     }
 
@@ -337,11 +335,46 @@ public class CooldownListener implements Listener {
             return;
         }
 
+        if (item.getType() == Material.POTION || item.getType() == Material.SPLASH_POTION || item.getType() == Material.LINGERING_POTION) {
+            List<CooldownType> potionTypes = getAllPotionCooldownTypes(item);
+            if (!potionTypes.isEmpty()) {
+                for (CooldownType cooldownType : potionTypes) {
+                    long cooldownMs = cooldownType.getCooldownMs(settings);
+                    if (cooldownMs == 0) {
+                        continue;
+                    }
+
+                    CooldownNotificationEntry notification = cooldownType.getNotification(settings);
+
+                    if (cooldownMs < 0) {
+                        if (notification.isActionbarMessage()) {
+                            String message = settings.getMessages().getPotionDisabledInPvpActionbar();
+                            if (!message.isEmpty()) {
+                                ActionBar.sendAction(player, Utils.color(message));
+                            }
+                        }
+                        return;
+                    }
+
+                    if (cooldownManager.hasCooldown(player, cooldownType, cooldownMs) && cooldownManager.wasCooldownSetInPvP(player, cooldownType)) {
+                        if (notification.isActionbarMessage()) {
+                            long remaining = cooldownManager.getRemaining(player, cooldownType, cooldownMs);
+                            int remainingInt = (int) TimeUnit.MILLISECONDS.toSeconds(remaining);
+                            String message = settings.getMessages().getPotionCooldownActionbar();
+                            if (!message.isEmpty()) {
+                                ActionBar.sendAction(player, Utils.color(Utils.replaceTime(message, remainingInt)));
+                            }
+                        }
+                        return;
+                    }
+                }
+            }
+            return;
+        }
+
         CooldownType cooldownType = null;
 
-        if (item.getType() == Material.POTION || item.getType() == Material.SPLASH_POTION || item.getType() == Material.LINGERING_POTION) {
-            cooldownType = getPotionCooldownType(item);
-        } else if (item.getType() == Material.GOLDEN_APPLE) {
+        if (item.getType() == Material.GOLDEN_APPLE) {
             cooldownType = isEnchantedGoldenApple(item) ? CooldownType.ENC_GOLDEN_APPLE : CooldownType.GOLDEN_APPLE;
         } else if (VersionUtils.isVersion(13) && item.getType() == Material.ENCHANTED_GOLDEN_APPLE) {
             cooldownType = CooldownType.ENC_GOLDEN_APPLE;
@@ -365,12 +398,10 @@ public class CooldownListener implements Listener {
         }
 
         CooldownNotificationEntry notification = cooldownType.getNotification(settings);
-        boolean isPotion = isPotionCooldownType(cooldownType);
 
         if (cooldownMs < 0) {
             if (notification.isActionbarMessage()) {
-                String message = isPotion ? settings.getMessages().getPotionDisabledInPvpActionbar() :
-                        settings.getMessages().getItemDisabledInPvpActionbar();
+                String message = settings.getMessages().getItemDisabledInPvpActionbar();
                 if (!message.isEmpty()) {
                     ActionBar.sendAction(player, Utils.color(message));
                 }
@@ -382,8 +413,7 @@ public class CooldownListener implements Listener {
             if (notification.isActionbarMessage()) {
                 long remaining = cooldownManager.getRemaining(player, cooldownType, cooldownMs);
                 int remainingInt = (int) TimeUnit.MILLISECONDS.toSeconds(remaining);
-                String message = isPotion ? settings.getMessages().getPotionCooldownActionbar() :
-                        settings.getMessages().getItemCooldownActionbar();
+                String message = settings.getMessages().getItemCooldownActionbar();
                 if (!message.isEmpty()) {
                     ActionBar.sendAction(player, Utils.color(Utils.replaceTime(message, remainingInt)));
                 }
@@ -644,9 +674,6 @@ public class CooldownListener implements Listener {
     }
 
     private void addItemCooldownIfNeeded(Player player, CooldownType cooldownType) {
-        if (isPotionCooldownType(cooldownType)) {
-            return;
-        }
         long cooldownMs = cooldownType.getCooldownMs(settings);
         if (pvpManager.isPvPModeEnabled()) {
             if (pvpManager.isInPvP(player)) {
@@ -654,6 +681,17 @@ public class CooldownListener implements Listener {
             }
         } else {
             cooldownManager.addItemCooldown(player, cooldownType, cooldownMs);
+        }
+    }
+
+    private void addItemCooldownIfNeeded(Player player, CooldownType cooldownType, Material material) {
+        long cooldownMs = cooldownType.getCooldownMs(settings);
+        if (pvpManager.isPvPModeEnabled()) {
+            if (pvpManager.isInPvP(player)) {
+                cooldownManager.addItemCooldown(player, cooldownType, cooldownMs, material);
+            }
+        } else {
+            cooldownManager.addItemCooldown(player, cooldownType, cooldownMs, material);
         }
     }
 

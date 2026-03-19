@@ -60,11 +60,12 @@ public class Antirelog extends JavaPlugin {
     public void onDisable() {
         disabling = true;
         AntiRelogAPI.disable();
+        getServer().getScheduler().cancelTasks(this);
         if (pvpManager != null) {
             pvpManager.onPluginDisable();
         }
         if (cooldownManager != null) {
-            cooldownManager.clearAll();
+            cooldownManager.shutdown();
         }
     }
 
